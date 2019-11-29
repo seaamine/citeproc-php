@@ -461,11 +461,13 @@ class Name implements HasParent
         if (!$this->etAlUseLast) {
             if (count($resultNames) === 1) {
                 $text = $resultNames[0];
-            } else if (count($resultNames) === 2) {
-                $text = implode(" ", $resultNames);
-            } else { // >2
-                $lastName = array_pop($resultNames);
-                $text = implode($this->delimiter, $resultNames) . " " . $lastName;
+            } else {
+                if (count($resultNames) === 2) {
+                    $text = implode(" ", $resultNames);
+                } else { // >2
+                    $lastName = array_pop($resultNames);
+                    $text = implode($this->delimiter, $resultNames) . " " . $lastName;
+                }
             }
         }
         return $text;
@@ -479,10 +481,12 @@ class Name implements HasParent
     {
         if (count($resultNames) === 1) {
             $text = $resultNames[0];
-        } else if (count($resultNames) === 2) {
-            $text = implode(" ", $resultNames);
         } else {
-            $text = implode($this->delimiter, $resultNames);
+            if (count($resultNames) === 2) {
+                $text = implode(" ", $resultNames);
+            } else {
+                $text = implode($this->delimiter, $resultNames);
+            }
         }
         return $text;
     }
@@ -535,7 +539,6 @@ class Name implements HasParent
      */
     private function nameOrder($data, $rank)
     {
-        $text = "";
         $nameAsSortOrder = (($this->nameAsSortOrder === "first" && $rank === 0) || $this->nameAsSortOrder === "all");
         $demoteNonDroppingParticle = CiteProc::getContext()->getGlobalOptions()->getDemoteNonDroppingParticles();
 
@@ -553,36 +556,41 @@ class Name implements HasParent
 
                 $text = $family . (!empty($given) ? $this->sortSeparator . $given : "");
                 $text .= !empty($data->suffix) ? $this->sortSeparator . $data->suffix : "";
-            } else if ($this->form === "long" && $nameAsSortOrder &&
-                (is_null($demoteNonDroppingParticle) ||
-                    (string)$demoteNonDroppingParticle === DemoteNonDroppingParticle::DISPLAY_AND_SORT)
-            ) {
-                // [Fontaine], [Jean] [de] [La], [III]
+            } else {
+                if ($this->form === "long" && $nameAsSortOrder &&
+                    (is_null($demoteNonDroppingParticle) ||
+                        (string)$demoteNonDroppingParticle === DemoteNonDroppingParticle::DISPLAY_AND_SORT)
+                ) {
+                    // [Fontaine], [Jean] [de] [La], [III]
+                    NameHelper::appendParticleTo($data, "given", "dropping-particle");
+                    NameHelper::appendParticleTo($data, "given", "non-dropping-particle");
+                    list($family, $given) = $this->renderNameParts($data);
+                    $text = $family;
+                    $text .= !empty($given) ? $this->sortSeparator . $given : "";
+                    $text .= !empty($data->suffix) ? $this->sortSeparator . $data->suffix : "";
 
-                NameHelper::appendParticleTo($data, "given", "dropping-particle");
-                NameHelper::appendParticleTo($data, "given", "non-dropping-particle");
-                list($family, $given) = $this->renderNameParts($data);
-                $text = $family;
-                $text .= !empty($given) ? $this->sortSeparator . $given : "";
-                $text .= !empty($data->suffix) ? $this->sortSeparator . $data->suffix : "";
+                } else {
+                    if ($this->form === "long" && $nameAsSortOrder && empty($demoteNonDroppingParticle)) {
+                        list($family, $given) = $this->renderNameParts($data);
+                        $text = $family;
+                        $text .= !empty($given) ? $this->delimiter . $given : "";
+                        $text .= !empty($data->suffix) ? $this->sortSeparator . $data->suffix : "";
+                    } else {
+                        if ($this->form === "short") {
+                            // [La] [Fontaine]
+                            NameHelper::prependParticleTo($data, "family", "non-dropping-particle");
+                            $text = $data->family;
+                        } else { //form "long" (default)
 
-            } else if ($this->form === "long" && $nameAsSortOrder && empty($demoteNonDroppingParticle)) {
-                list($family, $given) = $this->renderNameParts($data);
-                $text = $family;
-                $text .= !empty($given) ? $this->delimiter . $given : "";
-                $text .= !empty($data->suffix) ? $this->sortSeparator . $data->suffix : "";
-            } else if ($this->form === "short") {
-                // [La] [Fontaine]
-                NameHelper::prependParticleTo($data, "family", "non-dropping-particle");
-                $text = $data->family;
-            } else { //form "long" (default)
-
-                // [Jean] [de] [La] [Fontaine] [III]
-                NameHelper::prependParticleTo($data, "family", "non-dropping-particle");
-                NameHelper::prependParticleTo($data, "family", "dropping-particle");
-                NameHelper::appendParticleTo($data, "family", "suffix");
-                list($family, $given) = $this->renderNameParts($data);
-                $text = !empty($given) ? $given . " " . $family : $family;
+                            // [Jean] [de] [La] [Fontaine] [III]
+                            NameHelper::prependParticleTo($data, "family", "non-dropping-particle");
+                            NameHelper::prependParticleTo($data, "family", "dropping-particle");
+                            NameHelper::appendParticleTo($data, "family", "suffix");
+                            list($family, $given) = $this->renderNameParts($data);
+                            $text = !empty($given) ? $given . " " . $family : $family;
+                        }
+                    }
+                }
             }
         } else {
             $text = $this->form === "long" ? $data->family . $data->given : $data->family;
@@ -597,9 +605,11 @@ class Name implements HasParent
     private function renderNameParts($data)
     {
         $given = "";
-        $family = array_key_exists("family", $this->nameParts) ? $this->nameParts["family"]->render($data) : $data->family;
+        $family = array_key_exists("family",
+            $this->nameParts) ? $this->nameParts["family"]->render($data) : $data->family;
         if (isset($data->given)) {
-            $given = array_key_exists("given", $this->nameParts) ? $this->nameParts["given"]->render($data) : $data->given;
+            $given = array_key_exists("given",
+                $this->nameParts) ? $this->nameParts["given"]->render($data) : $data->given;
         }
         return [$family, $given];
     }
