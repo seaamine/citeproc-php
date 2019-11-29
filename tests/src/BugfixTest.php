@@ -110,4 +110,9 @@ class BugfixTest extends TestCase
     {
         $this->_testRenderTestSuite("bugfix-github-date");
     }
+
+    public function testBugfixGithub75()
+    {
+        $this->_testRenderTestSuite("bugfix-github-75");
+    }
 }

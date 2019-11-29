@@ -535,6 +535,7 @@ class Name implements HasParent
      */
     private function nameOrder($data, $rank)
     {
+        $text = "";
         $nameAsSortOrder = (($this->nameAsSortOrder === "first" && $rank === 0) || $this->nameAsSortOrder === "all");
         $demoteNonDroppingParticle = CiteProc::getContext()->getGlobalOptions()->getDemoteNonDroppingParticles();
 
@@ -584,9 +585,9 @@ class Name implements HasParent
                 $text = !empty($given) ? $given . " " . $family : $family;
             }
         } else if (StringHelper::isAsianString(NameHelper::normalizeName($data))) {
-            $text = $this->form === "long" ? $data->family . $data->given : $data->family;
+            //$text = $this->form === "long" ? $data->family . $data->given : $data->family;
         } else {
-            $text = $this->form === "long" ? $data->family . " " . $data->given : $data->family;
+            $text = $this->form === "long" ? $data->family . $data->given : $data->family;
         }
         return $text;
     }
